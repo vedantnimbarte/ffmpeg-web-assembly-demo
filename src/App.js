@@ -94,11 +94,6 @@ function App() {
 
       mediaRecorder.start();
       frames.forEach((frame, index) => {
-        // console.log("frame timeout duration", {
-        //   index,
-        //   duration: (index * 1000) / fps,
-        //   fps,
-        // });
         setTimeout(() => {
           const img = new Image();
           img.src = frame;
@@ -133,7 +128,7 @@ function App() {
 
     const svgImg = await loadSVG(svgDataUrl);
 
-    renderTextWithEl("SVG Canvas", canvas);
+    // renderTextWithEl("SVG Canvas", canvas);
 
     renderTextWithEl("Preview of SVG", svgImg);
 
