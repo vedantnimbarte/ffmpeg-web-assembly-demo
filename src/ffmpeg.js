@@ -16,7 +16,17 @@ const loadFFmpeg = async () => {
 
 const convertVideoToGif = async (ffmpeg, videoFile) => {
   await ffmpeg.writeFile("input.mp4", await fetchFile(videoFile));
-  await ffmpeg.exec(["-i", "input.webm", "-qscale", "0", "output.gif"]);
+  await ffmpeg.exec([
+    "-i",
+    "input.webm",
+    "-vf",
+    "fps=10,scale=1920:-1:flags=lanczos",
+    "-loop",
+    "0",
+    "-c:v",
+    "gif",
+    "output.gif",
+  ]);
   const data = await ffmpeg.readFile("output.gif");
   return URL.createObjectURL(new Blob([data.buffer], { type: "image/gif" }));
 };
