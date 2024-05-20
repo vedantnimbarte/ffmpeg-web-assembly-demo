@@ -20,7 +20,7 @@ const convertVideoToGif = async (ffmpeg, videoFile) => {
     "-i",
     "input.webm",
     "-vf",
-    "fps=10,scale=1920:-1:flags=lanczos",
+    "fps=60,scale=1920:-1:flags=lanczos,setpts=2*PTS",
     "-loop",
     "0",
     "-c:v",
