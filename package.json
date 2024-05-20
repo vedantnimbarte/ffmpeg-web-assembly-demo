@@ -5,17 +5,9 @@
   "dependencies": {
     "@ffmpeg/ffmpeg": "^0.12.10",
     "@ffmpeg/util": "^0.12.1",
-    "@testing-library/jest-dom": "^5.17.0",
-    "@testing-library/react": "^13.4.0",
-    "@testing-library/user-event": "^13.5.0",
-    "canvg": "^4.0.2",
-    "mini-svg-data-uri": "^1.4.4",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-scripts": "5.0.1",
-    "recordrtc": "^5.6.2",
-    "sharp": "^0.33.4",
-    "web-vitals": "^2.1.4",
     "webrtc-adapter": "^9.0.1"
   },
   "scripts": {

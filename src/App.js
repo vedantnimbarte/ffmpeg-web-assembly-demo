@@ -11,50 +11,22 @@ async function loadSVG(svgDataUrl) {
   const svgText = await response.text();
   const blob = new Blob([svgText], { type: "image/svg+xml" });
   const url = URL.createObjectURL(blob);
-  const img = new Image();
+
+  const reader = new FileReader();
+
   return new Promise((resolve, reject) => {
-    img.onload = () => {
-      URL.revokeObjectURL(url);
-      resolve(img);
+    reader.onload = (e) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        // URL.revokeObjectURL(url);
+        console.log("load fetch svg url", url);
+        resolve(img);
+      };
+      img.onerror = reject;
+      img.src = e.target.result;
     };
-    img.onerror = reject;
-    img.src = url;
-  });
-}
-
-async function framesToVideo(frames, canvas, fps) {
-  return new Promise((resolve) => {
-    const stream = canvas.captureStream(fps);
-    const mediaRecorder = new MediaRecorder(stream);
-
-    mediaRecorder.ondataavailable = (e) => {
-      if (e.data.size > 0) {
-        const blob = new Blob([e.data], { type: "video/webm" });
-        console.log("resolving webm video", e.data.type);
-        resolve(blob);
-      }
-    };
-
-    mediaRecorder.start();
-    frames.forEach((frame, index) => {
-      // console.log("frame timeout duration", {
-      //   index,
-      //   duration: (index * 1000) / fps,
-      //   fps,
-      // });
-      setTimeout(() => {
-        const img = new Image();
-        img.src = frame;
-        img.onload = () => {
-          const ctx = canvas.getContext("2d");
-          ctx.drawImage(img, 0, 0);
-        };
-      }, (index * 1000) / fps);
-    });
-
-    setTimeout(() => {
-      mediaRecorder.stop();
-    }, duration);
+    reader.readAsDataURL(blob);
   });
 }
 
@@ -97,15 +69,49 @@ function App() {
         frameCount++;
         if (frameCount < totalFrames) {
           setGifFrames({ totalFrames, currentFrame: frameCount });
-          console.log("if condition", { totalFrames, frameCount });
           setTimeout(drawFrame, interval);
         } else {
-          console.log("resolving", frames[20]);
           resolve(frames);
         }
       }
 
       drawFrame();
+    });
+  }
+
+  async function framesToVideo(frames, canvas, fps) {
+    return new Promise((resolve) => {
+      const stream = canvas.captureStream(fps);
+      const mediaRecorder = new MediaRecorder(stream);
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) {
+          const blob = new Blob([e.data], { type: "video/webm" });
+          console.log("resolving webm video", e.data.type);
+          resolve(blob);
+        }
+      };
+
+      mediaRecorder.start();
+      frames.forEach((frame, index) => {
+        // console.log("frame timeout duration", {
+        //   index,
+        //   duration: (index * 1000) / fps,
+        //   fps,
+        // });
+        setTimeout(() => {
+          const img = new Image();
+          img.src = frame;
+          img.onload = () => {
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(img, 0, 0);
+          };
+        }, (index * 1000) / fps);
+      });
+
+      setTimeout(() => {
+        mediaRecorder.stop();
+      }, duration);
     });
   }
 
@@ -127,6 +133,8 @@ function App() {
 
     const svgImg = await loadSVG(svgDataUrl);
 
+    renderTextWithEl("SVG Canvas", canvas);
+
     renderTextWithEl("Preview of SVG", svgImg);
 
     const frames = await captureAnimationFrames(svgImg, canvas, duration, fps);
@@ -144,7 +152,6 @@ function App() {
     setProcessing(true);
     svgToMp4(svgFile, 5, 10)
       .then((mp4Blob) => {
-        console.log("mp4blob", mp4Blob);
         // Create a video element to play the MP4 video in the browser
         const videoUrl = URL.createObjectURL(mp4Blob);
         console.log("video url", videoUrl);
@@ -159,18 +166,11 @@ function App() {
   };
 
   const handleFileChange = (e) => {
-    // setVideoFile(e.target.files[0]);
     convert(URL.createObjectURL(e.target.files[0]));
   };
 
-  // const convertToGif = async () => {
-  //   if (!videoFile) return;
-  //   await convertVideo(videoFile);
-  // };
-
   useEffect(() => {
     if (output) {
-      // imageRef.current.src = output;
       var link = document.createElement("a");
       link.href = output;
       link.download = "Download.gif";
@@ -190,9 +190,6 @@ function App() {
   return loaded ? (
     <div>
       <input type="file" accept="image/svg" onChange={handleFileChange} />
-      <p>
-        FFMPEG LOG: <span ref={ffmpegLogRef}></span>
-      </p>
 
       {processing ? (
         <div>
@@ -201,6 +198,10 @@ function App() {
       ) : (
         <button onClick={convert}>Convert to GIF</button>
       )}
+
+      <p>
+        FFMPEG LOG: <span ref={ffmpegLogRef}></span>
+      </p>
     </div>
   ) : (
     <p>Loading...</p>
