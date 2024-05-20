@@ -128,7 +128,7 @@ function App() {
 
     const svgImg = await loadSVG(svgDataUrl);
 
-    renderTextWithEl("SVG Canvas", canvas);
+    // renderTextWithEl("SVG Canvas", canvas);
 
     renderTextWithEl("Preview of SVG", svgImg);
 
