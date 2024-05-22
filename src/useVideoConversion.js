@@ -1,16 +1,30 @@
 // useVideoConversion.js
 import { useState } from "react";
-import { convertVideoToGif } from "./ffmpeg";
+import { convertVideoToGif, fetchFile } from "./ffmpeg";
 
 const useVideoConversion = (ffmpeg) => {
   const [output, setOutput] = useState(null);
 
-  const convertVideo = async (videoFile) => {
-    const gifUrl = await convertVideoToGif(ffmpeg, videoFile);
-    setOutput(gifUrl);
+  const convertVideo = async () => {
+    try {
+      const gifUrl = await convertVideoToGif(ffmpeg);
+      setOutput(gifUrl);
+    } catch (error) {
+      console.log("error", error);
+    }
   };
 
-  return { output, convertVideo };
+  const saveFile = async (blob) => {
+    try {
+      const url = URL.createObjectURL(blob);
+      await ffmpeg.writeFile("input.webm", await fetchFile(url));
+      return true;
+    } catch (error) {
+      return false;
+    }
+  };
+
+  return { output, convertVideo, saveFile };
 };
 
 export default useVideoConversion;

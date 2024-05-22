@@ -14,15 +14,34 @@ const loadFFmpeg = async () => {
 
 // ffmpeg -i input_video.mp4 -vf "fps=15,scale=320:240:flags=lanczos" -gifflags +transdiff -y output.gif
 
-const convertVideoToGif = async (ffmpeg, videoFile) => {
-  await ffmpeg.writeFile("input.mp4", await fetchFile(videoFile));
-  await ffmpeg.exec([
+const convertVideoToGif = async (ffmpeg) => {
+  // await ffmpeg.exec([
+  //   "-i",
+  //   "input.webm",
+  //   "-vf",
+  //   "fps=60,scale=1920:1080,setpts=2*PTS",
+  //   "-loop",
+  //   "0",
+  //   "-c:v",
+  //   "gif",
+  //   "output.gif",
+  // ]);
+  const res = await ffmpeg.exec([
     "-i",
     "input.webm",
     "-vf",
-    "fps=60,scale=1920:-1:flags=lanczos,setpts=2*PTS",
-    "-loop",
-    "0",
+    "fps=10,scale=1920:1080:flags=lanczos,palettegen",
+    // "-y",
+    "palette.png",
+  ]);
+  console.log("palette.png", await ffmpeg.listDir("."), res);
+  await ffmpeg.exec([
+    "-i",
+    "input.webm",
+    "-i",
+    "palette.png",
+    "-filter_complex",
+    "fps=60,scale=1920:1080:flags=lanczos[x];[x][1:v]paletteuse,setpts=2*PTS",
     "-c:v",
     "gif",
     "output.gif",
@@ -31,4 +50,4 @@ const convertVideoToGif = async (ffmpeg, videoFile) => {
   return URL.createObjectURL(new Blob([data.buffer], { type: "image/gif" }));
 };
 
-export { loadFFmpeg, convertVideoToGif };
+export { loadFFmpeg, convertVideoToGif, fetchFile };

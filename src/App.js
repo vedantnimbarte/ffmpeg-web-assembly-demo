@@ -32,7 +32,7 @@ async function loadSVG(svgDataUrl) {
 
 function App() {
   const { loaded, ffmpeg } = useFFmpeg();
-  const { convertVideo, output } = useVideoConversion(ffmpeg);
+  const { convertVideo, output, saveFile } = useVideoConversion(ffmpeg);
   const [processing, setProcessing] = useState(false);
   const [gifFrames, setGifFrames] = useState(null);
   const ffmpegLogRef = useRef(null);
@@ -65,7 +65,7 @@ function App() {
       function drawFrame() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.drawImage(svgImg, 0, 0);
-        frames.push(canvas.toDataURL("image/webp"));
+        frames.push(canvas.toDataURL("image/png"));
         frameCount++;
         if (frameCount < totalFrames) {
           setGifFrames({ totalFrames, currentFrame: frameCount });
@@ -87,7 +87,6 @@ function App() {
       mediaRecorder.ondataavailable = (e) => {
         if (e.data.size > 0) {
           const blob = new Blob([e.data], { type: "video/webm" });
-          console.log("resolving webm video", e.data.type);
           resolve(blob);
         }
       };
@@ -110,17 +109,6 @@ function App() {
     });
   }
 
-  async function convertWebMToMP4(webMBlob) {
-    const webMArrayBuffer = await webMBlob.arrayBuffer();
-    ffmpeg.writeFile("input.webm", new Uint8Array(webMArrayBuffer));
-
-    await ffmpeg.exec(["-i", "input.webm", "output.mp4"]);
-
-    const data = ffmpeg.readFile("output.mp4");
-    const mp4Blob = new Blob([data.buffer], { type: "video/mp4" });
-    return mp4Blob;
-  }
-
   async function svgToMp4(svgDataUrl, duration, fps) {
     const canvas = document.createElement("canvas");
 
@@ -128,30 +116,31 @@ function App() {
 
     const svgImg = await loadSVG(svgDataUrl);
 
-    // renderTextWithEl("SVG Canvas", canvas);
-
     renderTextWithEl("Preview of SVG", svgImg);
 
     const frames = await captureAnimationFrames(svgImg, canvas, duration, fps);
+    console.log("frame", frames[5]);
     const webMBlob = await framesToVideo(frames, canvas, fps);
 
-    const mp4Blob = await convertWebMToMP4(webMBlob);
-    return mp4Blob;
+    console.log("webm blobl url", URL.createObjectURL(webMBlob));
+
+    return webMBlob;
   }
 
   ffmpeg?.on("log", ({ message }) => {
+    console.log("ffmpeg", message);
     ffmpegLogRef.current.innerText = message;
   });
 
   const convert = (svgFile) => {
     setProcessing(true);
     svgToMp4(svgFile, 5, 10)
-      .then((mp4Blob) => {
+      .then(async (mp4Blob) => {
         // Create a video element to play the MP4 video in the browser
-        const videoUrl = URL.createObjectURL(mp4Blob);
-        console.log("video url", videoUrl);
 
-        convertVideo(videoUrl);
+        await saveFile(mp4Blob);
+
+        convertVideo();
       })
       .catch((err) => console.log("error", err))
       .finally(() => {
