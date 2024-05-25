@@ -2,33 +2,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import useFFmpeg from "./useFFmpeg";
 import useVideoConversion from "./useVideoConversion";
-import "webrtc-adapter";
-
-const duration = 5000; // duration is in milliseconds
-
-async function loadSVG(svgDataUrl) {
-  const response = await fetch(svgDataUrl);
-  const svgText = await response.text();
-  const blob = new Blob([svgText], { type: "image/svg+xml" });
-  const url = URL.createObjectURL(blob);
-
-  const reader = new FileReader();
-
-  return new Promise((resolve, reject) => {
-    reader.onload = (e) => {
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.onload = () => {
-        // URL.revokeObjectURL(url);
-        console.log("load fetch svg url", url);
-        resolve(img);
-      };
-      img.onerror = reject;
-      img.src = e.target.result;
-    };
-    reader.readAsDataURL(blob);
-  });
-}
+import {
+  captureAnimationFrames,
+  downloadGIF,
+  framesToVideo,
+  loadSVG,
+  renderTextWithEl,
+} from "./utils/functions";
+import { DURATION, FPS } from "./utils/constants";
 
 function App() {
   const { loaded, ffmpeg } = useFFmpeg();
@@ -36,78 +17,6 @@ function App() {
   const [processing, setProcessing] = useState(false);
   const [gifFrames, setGifFrames] = useState(null);
   const ffmpegLogRef = useRef(null);
-
-  function renderTextWithEl(text, element) {
-    const container = document.createElement("div");
-    const textEl = document.createElement("p");
-    const divider = document.createElement("hr");
-    textEl.innerText = text;
-    container.appendChild(textEl);
-    container.appendChild(element);
-    container.appendChild(divider);
-    document.body.appendChild(container);
-    return;
-  }
-
-  async function captureAnimationFrames(svgImg, canvas, duration, fps) {
-    const frames = [];
-    const ctx = canvas.getContext("2d");
-    const totalFrames = duration * fps;
-    const interval = 1000 / fps;
-
-    canvas.height = svgImg.height;
-    canvas.width = svgImg.width;
-
-    return new Promise((resolve) => {
-      let frameCount = 0;
-      console.log("svg", { height: svgImg.height, width: svgImg.width });
-
-      function drawFrame() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(svgImg, 0, 0);
-        frames.push(canvas.toDataURL("image/png"));
-        frameCount++;
-        if (frameCount < totalFrames) {
-          setGifFrames({ totalFrames, currentFrame: frameCount });
-          setTimeout(drawFrame, interval);
-        } else {
-          resolve(frames);
-        }
-      }
-
-      drawFrame();
-    });
-  }
-
-  async function framesToVideo(frames, canvas, fps) {
-    return new Promise((resolve) => {
-      const stream = canvas.captureStream(fps);
-      const mediaRecorder = new MediaRecorder(stream);
-
-      mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) {
-          const blob = new Blob([e.data], { type: "video/webm" });
-          resolve(blob);
-        }
-      };
-
-      mediaRecorder.start();
-      frames.forEach((frame, index) => {
-        setTimeout(() => {
-          const img = new Image();
-          img.src = frame;
-          img.onload = () => {
-            const ctx = canvas.getContext("2d");
-            ctx.drawImage(img, 0, 0);
-          };
-        }, (index * 1000) / fps);
-      });
-
-      setTimeout(() => {
-        mediaRecorder.stop();
-      }, duration);
-    });
-  }
 
   async function svgToMp4(svgDataUrl, duration, fps) {
     const canvas = document.createElement("canvas");
@@ -118,9 +27,14 @@ function App() {
 
     renderTextWithEl("Preview of SVG", svgImg);
 
-    const frames = await captureAnimationFrames(svgImg, canvas, duration, fps);
-    console.log("frame", frames[5]);
-    const webMBlob = await framesToVideo(frames, canvas, fps);
+    const frames = await captureAnimationFrames(
+      svgImg,
+      canvas,
+      duration,
+      fps,
+      setGifFrames
+    );
+    const webMBlob = await framesToVideo(frames, canvas, fps, duration * 1000);
 
     console.log("webm blobl url", URL.createObjectURL(webMBlob));
 
@@ -134,10 +48,8 @@ function App() {
 
   const convert = (svgFile) => {
     setProcessing(true);
-    svgToMp4(svgFile, 5, 10)
+    svgToMp4(svgFile, DURATION, FPS)
       .then(async (mp4Blob) => {
-        // Create a video element to play the MP4 video in the browser
-
         await saveFile(mp4Blob);
 
         convertVideo();
@@ -155,12 +67,7 @@ function App() {
 
   useEffect(() => {
     if (output) {
-      var link = document.createElement("a");
-      link.href = output;
-      link.download = "Download.gif";
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      downloadGIF(output);
     }
   }, [output]);
 
@@ -175,13 +82,25 @@ function App() {
     <div>
       <input type="file" accept="image/svg" onChange={handleFileChange} />
 
-      {processing ? (
-        <div>
-          <p>Processing GIF {percentage.toFixed(2)}%</p>
+      {gifFrames && (
+        <div
+          style={{
+            display: "flex",
+            gap: "10px",
+            justifyContent: "center",
+            alignItems: "center",
+          }}
+        >
+          <p>{percentage.toFixed(2)}%</p>
+          <progress
+            value={percentage}
+            max="100"
+            style={{ width: "100%" }}
+          ></progress>
         </div>
-      ) : (
-        <button onClick={convert}>Convert to GIF</button>
       )}
+
+      {processing && <button onClick={convert}>Convert to GIF</button>}
 
       <p>
         FFMPEG LOG: <span ref={ffmpegLogRef}></span>
