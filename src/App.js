@@ -14,7 +14,6 @@ import { DURATION, FPS } from "./utils/constants";
 function App() {
   const { loaded, ffmpeg } = useFFmpeg();
   const { convertVideo, output, saveFile } = useVideoConversion(ffmpeg);
-  const [processing, setProcessing] = useState(false);
   const [gifFrames, setGifFrames] = useState(null);
   const ffmpegLogRef = useRef(null);
 
@@ -47,7 +46,6 @@ function App() {
   });
 
   const convert = (svgFile) => {
-    setProcessing(true);
     svgToMp4(svgFile, DURATION, FPS)
       .then(async (mp4Blob) => {
         await saveFile(mp4Blob);
@@ -57,7 +55,6 @@ function App() {
       .catch((err) => console.log("error", err))
       .finally(() => {
         setGifFrames(null);
-        setProcessing(false);
       });
   };
 
@@ -99,8 +96,6 @@ function App() {
           ></progress>
         </div>
       )}
-
-      {processing && <button onClick={convert}>Convert to GIF</button>}
 
       <p>
         FFMPEG LOG: <span ref={ffmpegLogRef}></span>
