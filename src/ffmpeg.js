@@ -16,6 +16,7 @@ const loadFFmpeg = async () => {
 
 const convertVideoToGif = async (ffmpeg) => {
   await ffmpeg.exec([
+    "-y",
     "-i",
     "input.webm",
     "-vf",
@@ -24,6 +25,7 @@ const convertVideoToGif = async (ffmpeg) => {
   ]);
 
   await ffmpeg.exec([
+    "-y",
     "-i",
     "input.webm",
     "-i",
