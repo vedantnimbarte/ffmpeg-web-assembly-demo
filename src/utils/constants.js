@@ -1,4 +1,4 @@
-export const FPS = 10;
+export const FPS = 60;
 export const DURATION = 5;
 export const RESOLUTION = {
   width: 1920,
