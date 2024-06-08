@@ -1,3 +1,4 @@
+import { fetchFile } from "@ffmpeg/util";
 import { MIMETYPES } from "./constants";
 
 export function renderTextWithEl(text, element) {
@@ -17,7 +18,8 @@ export const captureAnimationFrames = async (
   canvas,
   duration,
   fps,
-  setGifFrames
+  setGifFrames,
+  ffmpeg
 ) => {
   const frames = [];
   const ctx = canvas.getContext("2d");
@@ -28,9 +30,10 @@ export const captureAnimationFrames = async (
   canvas.height = svgImg.height;
   canvas.width = svgImg.width;
 
-  return new Promise((resolve) => {
+  return new Promise(async (resolve) => {
     let frameCount = 0;
-
+    await ffmpeg.createDir("frames");
+    let inputTxtFileContent = "";
     function drawFrame(timestamp) {
       if (timestamp - lastFrameTime >= interval) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -38,9 +41,16 @@ export const captureAnimationFrames = async (
 
         canvas.toBlob(async (blob) => {
           const reader = new FileReader();
-          reader.onload = (e) => {
+          reader.onload = async (e) => {
             frames.push(e.target.result);
+            const imageName = `frames/frame${frameCount}.png`;
+            await ffmpeg.writeFile(imageName, e.target.result);
+            inputTxtFileContent += `file '${imageName}'\n`;
           };
+          await ffmpeg.writeFile(
+            `frames/frame${frameCount}.png`,
+            URL.createObjectURL(blob)
+          );
           reader.readAsDataURL(blob);
           frameCount++;
           lastFrameTime = timestamp;
@@ -54,6 +64,8 @@ export const captureAnimationFrames = async (
             });
             requestAnimationFrame(drawFrame);
           } else {
+            await ffmpeg.writeFile("input.txt", inputTxtFileContent);
+            console.log("[FRAMES CONTENT]", inputTxtFileContent);
             resolve(frames);
           }
         }, MIMETYPES.png);

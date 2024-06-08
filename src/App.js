@@ -9,13 +9,15 @@ import {
   loadSVG,
   renderTextWithEl,
 } from "./utils/functions";
-import { DURATION, FPS } from "./utils/constants";
+import { DURATION, FPS, MIMETYPES, RESOLUTION } from "./utils/constants";
+import { fetchFile } from "@ffmpeg/util";
 
 function App() {
   const { loaded, ffmpeg } = useFFmpeg();
   const { convertVideo, output, saveFile } = useVideoConversion(ffmpeg);
   const [gifFrames, setGifFrames] = useState(null);
   const ffmpegLogRef = useRef(null);
+  const [processing, setProcessing] = useState(false);
 
   async function svgToMp4(svgDataUrl, duration, fps) {
     const canvas = document.createElement("canvas");
@@ -31,8 +33,28 @@ function App() {
       canvas,
       duration,
       fps,
-      setGifFrames
+      setGifFrames,
+      ffmpeg
     );
+    console.log("[GENERATING VIDEO FROM FRAMES]");
+    await ffmpeg.exec([
+      "-f",
+      "concat",
+      "-safe",
+      "0",
+      "-i",
+      "input.txt",
+      "-vf",
+      "fps=25",
+      "-pix_fmt",
+      "yuv420p",
+      "output.webm",
+    ]);
+    const data = await ffmpeg.readFile("output.webm");
+    const videoDataUrl = URL.createObjectURL(
+      new Blob([data.buffer], { type: MIMETYPES.webm })
+    );
+    console.log("[GENERATED VIDEO FROM FRAMES]", videoDataUrl);
     const webMBlob = await framesToVideo(frames, canvas, fps, duration * 1000);
 
     console.log("webm blobl url", URL.createObjectURL(webMBlob));
@@ -58,8 +80,54 @@ function App() {
       });
   };
 
-  const handleFileChange = (e) => {
-    convert(URL.createObjectURL(e.target.files[0]));
+  const handleFileChange = async (e) => {
+    try {
+      setProcessing(true);
+      const formdata = new FormData();
+      formdata.append("svg", e.target.files[0]);
+      const response = await fetch("http://45.129.87.115:3000/upload", {
+        method: "POST",
+        body: formdata,
+      });
+      const result = await response.json();
+
+      // convert(URL.createObjectURL(e.target.files[0]));
+      // convert(result.videoPath)
+      const apiURL = `http://45.129.87.115:3000/video/${result.videoPath}`;
+      await ffmpeg.writeFile("input.mp4", await fetchFile(apiURL));
+      await ffmpeg.exec([
+        "-y",
+        "-i",
+        "input.mp4",
+        "-vf",
+        `fps=${FPS},scale=${RESOLUTION.width}:${RESOLUTION.height}:flags=lanczos,palettegen=max_colors=256`,
+        "palette.png",
+      ]);
+
+      await ffmpeg.exec([
+        "-y",
+        "-i",
+        "input.mp4",
+        "-i",
+        "palette.png",
+        "-filter_complex",
+        `scale=${RESOLUTION.width}:${RESOLUTION.height}:flags=lanczos[x];[x][1:v]paletteuse,setpts=2*PTS`,
+        "-r",
+        `${FPS}`,
+        "-c:v",
+        "gif",
+        "output.gif",
+      ]);
+      const data = await ffmpeg.readFile("output.gif");
+      const output = URL.createObjectURL(
+        new Blob([data.buffer], { type: MIMETYPES.gif })
+      );
+      downloadGIF(output);
+    } catch (error) {
+      console.log("error", error);
+    } finally {
+      setProcessing(false);
+    }
   };
 
   useEffect(() => {
@@ -77,24 +145,10 @@ function App() {
 
   return loaded ? (
     <div>
-      <input type="file" accept="image/svg" onChange={handleFileChange} />
-
-      {gifFrames && (
-        <div
-          style={{
-            display: "flex",
-            gap: "10px",
-            justifyContent: "center",
-            alignItems: "center",
-          }}
-        >
-          <p>{percentage.toFixed(2)}%</p>
-          <progress
-            value={percentage}
-            max="100"
-            style={{ width: "100%" }}
-          ></progress>
-        </div>
+      {processing ? (
+        <p>Processing...</p>
+      ) : (
+        <input type="file" accept="image/svg" onChange={handleFileChange} />
       )}
 
       <p>
