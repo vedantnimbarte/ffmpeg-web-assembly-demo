@@ -85,7 +85,7 @@ function App() {
       setProcessing(true);
       const formdata = new FormData();
       formdata.append("svg", e.target.files[0]);
-      const response = await fetch("http://45.129.87.115:3000/upload", {
+      const response = await fetch("http://45.129.87.115:3001/upload", {
         method: "POST",
         body: formdata,
       });
@@ -93,7 +93,7 @@ function App() {
 
       // convert(URL.createObjectURL(e.target.files[0]));
       // convert(result.videoPath)
-      const apiURL = `http://45.129.87.115:3000/video/${result.videoPath}`;
+      const apiURL = `http://45.129.87.115:3001/video/${result.videoPath}`;
       await ffmpeg.writeFile("input.mp4", await fetchFile(apiURL));
       await ffmpeg.exec([
         "-y",
@@ -114,6 +114,8 @@ function App() {
         `scale=${RESOLUTION.width}:${RESOLUTION.height}:flags=lanczos[x];[x][1:v]paletteuse,setpts=2*PTS`,
         "-r",
         `${FPS}`,
+        "-loop",
+        "0",
         "-c:v",
         "gif",
         "output.gif",
