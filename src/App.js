@@ -3,12 +3,13 @@ import { useEffect, useRef, useState } from "react";
 import useFFmpeg from "./useFFmpeg";
 import useVideoConversion from "./useVideoConversion";
 import {
-  captureAnimationFrames,
+  captureSvgAnimationVideo,
   downloadGIF,
-  framesToVideo,
   loadSVG,
   renderTextWithEl,
 } from "./utils/functions";
+import { MIMETYPES } from "./utils/constants";
+import { fetchFile } from "./ffmpeg";
 
 function App() {
   const { loaded, ffmpeg } = useFFmpeg();
@@ -19,14 +20,12 @@ function App() {
   async function svgToMp4(svgDataUrl) {
     const canvas = document.createElement("canvas");
 
-    console.log("svgDataUrl", svgDataUrl);
-
     const svgImg = await loadSVG(svgDataUrl);
 
     renderTextWithEl("Preview of SVG", svgImg);
 
-    const frames = await captureAnimationFrames(svgImg, canvas);
-    const videoUrl = await framesToVideo(frames, canvas);
+    const videoUrl = await captureSvgAnimationVideo(svgImg, canvas);
+    console.log("CAPTURED VIDEO URL", videoUrl);
 
     return videoUrl;
   }
@@ -60,7 +59,7 @@ function App() {
   useEffect(() => {
     if (output) {
       downloadGIF(output);
-      window.open(output, "_blank");
+      // window.open(output, "_blank");
     }
   }, [output]);
 

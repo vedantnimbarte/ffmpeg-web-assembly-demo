@@ -1,4 +1,3 @@
-import { fetchFile } from "@ffmpeg/util";
 import { DURATION, FPS, MIMETYPES, RESOLUTION } from "./constants";
 import RecordRTC from "recordrtc";
 
@@ -14,14 +13,21 @@ export function renderTextWithEl(text, element) {
   return;
 }
 
-export const captureAnimationFrames = async (svgImg, canvas) => {
-  const frames = [];
+export const captureSvgAnimationVideo = async (svgImg, canvas) => {
   const ctx = canvas.getContext("2d");
   const totalFrames = DURATION * FPS;
-  const interval = 1000 / FPS;
-  let lastFrameTime = performance.now();
+  let animationRequestId;
+  const frames = [];
 
-  console.log("[TOTAL FRAMES]", totalFrames);
+  const stream = canvas.captureStream(FPS);
+  const recorder = new RecordRTC(stream, {
+    type: "video",
+    mimeType: MIMETYPES.webm,
+    frameRate: FPS,
+    video: { width: RESOLUTION.width, height: RESOLUTION.height },
+    disableLogs: true,
+  });
+  recorder.startRecording();
 
   canvas.height = RESOLUTION.height;
   canvas.width = RESOLUTION.width;
@@ -29,30 +35,26 @@ export const captureAnimationFrames = async (svgImg, canvas) => {
   return new Promise(async (resolve) => {
     let frameCount = 0;
     function drawFrame(timestamp) {
-      if (timestamp - lastFrameTime >= interval) {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(svgImg, 0, 0);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(svgImg, 0, 0);
 
-        canvas.toBlob(async (blob) => {
-          const reader = new FileReader();
-          reader.onload = async (e) => {
-            frames.push(e.target.result);
-          };
-          reader.readAsDataURL(blob);
-          frameCount++;
-          lastFrameTime = timestamp;
-
-          if (frameCount < totalFrames) {
-            requestAnimationFrame(drawFrame);
-          } else {
-            resolve(frames);
-          }
-        }, MIMETYPES.webp);
+      if (frameCount < totalFrames) {
+        animationRequestId = requestAnimationFrame(drawFrame);
       } else {
-        requestAnimationFrame(drawFrame);
+        cancelAnimationFrame(animationRequestId);
+        resolve(frames);
       }
     }
-    requestAnimationFrame(drawFrame);
+    animationRequestId = requestAnimationFrame(drawFrame);
+
+    setTimeout(() => {
+      recorder.stopRecording(() => {
+        const blob = recorder.getBlob();
+        const url = URL.createObjectURL(blob);
+        cancelAnimationFrame(animationRequestId);
+        resolve(url);
+      });
+    }, 5000);
   });
 };
 
@@ -79,40 +81,6 @@ export async function loadSVG(svgDataUrl) {
       img.src = e.target.result;
     };
     reader.readAsDataURL(blob);
-  });
-}
-
-export async function framesToVideo(frames, canvas) {
-  console.log("recording video");
-  return new Promise((resolve) => {
-    const stream = canvas.captureStream(FPS);
-    const recorder = new RecordRTC(stream, {
-      type: "video",
-      mimeType: MIMETYPES.webm,
-      frameRate: FPS,
-      video: { width: RESOLUTION.width, height: RESOLUTION.height },
-    });
-
-    recorder.startRecording();
-    frames.forEach((frame, index) => {
-      setTimeout(() => {
-        const img = new Image();
-        img.src = frame;
-        img.onload = () => {
-          const ctx = canvas.getContext("2d");
-          ctx.drawImage(img, 0, 0);
-        };
-      }, (index * 6000) / FPS);
-    });
-
-    setTimeout(() => {
-      recorder.stopRecording(() => {
-        const blob = recorder.getBlob();
-        const url = URL.createObjectURL(blob);
-        window.open(url, "_blank");
-        resolve(url);
-      });
-    }, 2000);
   });
 }
 
