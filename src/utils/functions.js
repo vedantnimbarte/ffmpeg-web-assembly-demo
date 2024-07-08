@@ -34,7 +34,7 @@ export const captureSvgAnimationVideo = async (svgImg, canvas) => {
 
   return new Promise(async (resolve) => {
     let frameCount = 0;
-    function drawFrame(timestamp) {
+    function drawFrame(_timestamp) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(svgImg, 0, 0);
 

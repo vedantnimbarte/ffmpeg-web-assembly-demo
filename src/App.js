@@ -8,8 +8,6 @@ import {
   loadSVG,
   renderTextWithEl,
 } from "./utils/functions";
-import { MIMETYPES } from "./utils/constants";
-import { fetchFile } from "./ffmpeg";
 
 function App() {
   const { loaded, ffmpeg } = useFFmpeg();
