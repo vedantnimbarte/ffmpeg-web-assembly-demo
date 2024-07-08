@@ -14,9 +14,8 @@ const useVideoConversion = (ffmpeg) => {
     }
   };
 
-  const saveFile = async (blob) => {
+  const saveFile = async (url) => {
     try {
-      const url = URL.createObjectURL(blob);
       await ffmpeg.writeFile("input.webm", await fetchFile(url));
       return true;
     } catch (error) {

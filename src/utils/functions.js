@@ -1,5 +1,6 @@
 import { fetchFile } from "@ffmpeg/util";
-import { MIMETYPES } from "./constants";
+import { DURATION, FPS, MIMETYPES, RESOLUTION } from "./constants";
+import RecordRTC from "recordrtc";
 
 export function renderTextWithEl(text, element) {
   const container = document.createElement("div");
@@ -13,27 +14,20 @@ export function renderTextWithEl(text, element) {
   return;
 }
 
-export const captureAnimationFrames = async (
-  svgImg,
-  canvas,
-  duration,
-  fps,
-  setGifFrames,
-  ffmpeg
-) => {
+export const captureAnimationFrames = async (svgImg, canvas) => {
   const frames = [];
   const ctx = canvas.getContext("2d");
-  const totalFrames = duration * fps;
-  const interval = 1000 / fps;
+  const totalFrames = DURATION * FPS;
+  const interval = 1000 / FPS;
   let lastFrameTime = performance.now();
 
-  canvas.height = svgImg.height;
-  canvas.width = svgImg.width;
+  console.log("[TOTAL FRAMES]", totalFrames);
+
+  canvas.height = RESOLUTION.height;
+  canvas.width = RESOLUTION.width;
 
   return new Promise(async (resolve) => {
     let frameCount = 0;
-    await ffmpeg.createDir("frames");
-    let inputTxtFileContent = "";
     function drawFrame(timestamp) {
       if (timestamp - lastFrameTime >= interval) {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -43,37 +37,21 @@ export const captureAnimationFrames = async (
           const reader = new FileReader();
           reader.onload = async (e) => {
             frames.push(e.target.result);
-            const imageName = `frames/frame${frameCount}.png`;
-            await ffmpeg.writeFile(imageName, e.target.result);
-            inputTxtFileContent += `file '${imageName}'\n`;
           };
-          await ffmpeg.writeFile(
-            `frames/frame${frameCount}.png`,
-            URL.createObjectURL(blob)
-          );
           reader.readAsDataURL(blob);
           frameCount++;
           lastFrameTime = timestamp;
 
-          setGifFrames({ totalFrames, currentFrame: frameCount });
-
           if (frameCount < totalFrames) {
-            console.log("getting frame", {
-              currentFrame: frameCount,
-              totalFrames,
-            });
             requestAnimationFrame(drawFrame);
           } else {
-            await ffmpeg.writeFile("input.txt", inputTxtFileContent);
-            console.log("[FRAMES CONTENT]", inputTxtFileContent);
             resolve(frames);
           }
-        }, MIMETYPES.png);
+        }, MIMETYPES.webp);
       } else {
         requestAnimationFrame(drawFrame);
       }
     }
-
     requestAnimationFrame(drawFrame);
   });
 };
@@ -90,6 +68,8 @@ export async function loadSVG(svgDataUrl) {
     reader.onload = (e) => {
       const img = new Image();
       img.crossOrigin = "anonymous";
+      img.height = 1000;
+      img.width = 1000;
       img.onload = () => {
         // URL.revokeObjectURL(url);
         console.log("load fetch svg url", url);
@@ -102,21 +82,18 @@ export async function loadSVG(svgDataUrl) {
   });
 }
 
-export async function framesToVideo(frames, canvas, fps, duration) {
+export async function framesToVideo(frames, canvas) {
   console.log("recording video");
   return new Promise((resolve) => {
-    const stream = canvas.captureStream(fps);
-    const mediaRecorder = new MediaRecorder(stream);
+    const stream = canvas.captureStream(FPS);
+    const recorder = new RecordRTC(stream, {
+      type: "video",
+      mimeType: MIMETYPES.webm,
+      frameRate: FPS,
+      video: { width: RESOLUTION.width, height: RESOLUTION.height },
+    });
 
-    mediaRecorder.ondataavailable = (e) => {
-      if (e.data.size > 0) {
-        console.log("data available", e.data);
-        const blob = new Blob([e.data], { type: MIMETYPES.webm });
-        resolve(blob);
-      }
-    };
-
-    mediaRecorder.start();
+    recorder.startRecording();
     frames.forEach((frame, index) => {
       setTimeout(() => {
         const img = new Image();
@@ -125,13 +102,17 @@ export async function framesToVideo(frames, canvas, fps, duration) {
           const ctx = canvas.getContext("2d");
           ctx.drawImage(img, 0, 0);
         };
-      }, (index * 1000) / fps);
+      }, (index * 6000) / FPS);
     });
 
     setTimeout(() => {
-      console.log("stopping recording");
-      mediaRecorder.stop();
-    }, duration);
+      recorder.stopRecording(() => {
+        const blob = recorder.getBlob();
+        const url = URL.createObjectURL(blob);
+        window.open(url, "_blank");
+        resolve(url);
+      });
+    }, 2000);
   });
 }
 

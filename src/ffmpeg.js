@@ -31,7 +31,7 @@ const convertVideoToGif = async (ffmpeg) => {
     "-i",
     "palette.png",
     "-filter_complex",
-    `scale=${RESOLUTION.width}:${RESOLUTION.height}:flags=lanczos[x];[x][1:v]paletteuse,setpts=2*PTS`,
+    `scale=${RESOLUTION.width}:${RESOLUTION.height}:flags=lanczos,unsharp=3:3:0.7[x];[x][1:v]paletteuse`,
     "-r",
     `${FPS}`,
     "-c:v",
