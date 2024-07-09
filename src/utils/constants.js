@@ -1,5 +1,6 @@
 export const FPS = 60;
-export const DURATION = 5;
+export const RECORDING_DURATION_IN_SECONDS = 5;
+export const RECORDING_DURATION_IN_MS = RECORDING_DURATION_IN_SECONDS * 1000;
 export const RESOLUTION = {
   width: 1920,
   height: 980,

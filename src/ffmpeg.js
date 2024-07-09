@@ -3,7 +3,7 @@ import { FFmpeg } from "@ffmpeg/ffmpeg";
 import { fetchFile, toBlobURL } from "@ffmpeg/util";
 import { FPS, MIMETYPES, RESOLUTION } from "./utils/constants";
 
-const loadFFmpeg = async () => {
+export const loadFFmpeg = async () => {
   const baseURL = "https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd";
   const ffmpeg = new FFmpeg();
   await ffmpeg.load({
@@ -14,7 +14,7 @@ const loadFFmpeg = async () => {
   return ffmpeg;
 };
 
-const convertVideoToGif = async (ffmpeg) => {
+export const convertVideoToGif = async (ffmpeg) => {
   await ffmpeg.exec([
     "-y",
     "-i",
@@ -25,6 +25,8 @@ const convertVideoToGif = async (ffmpeg) => {
   ]);
 
   await ffmpeg.exec([
+    "-v",
+    "debug",
     "-y",
     "-i",
     "input.webm",
@@ -42,4 +44,4 @@ const convertVideoToGif = async (ffmpeg) => {
   return URL.createObjectURL(new Blob([data.buffer], { type: MIMETYPES.gif }));
 };
 
-export { loadFFmpeg, convertVideoToGif, fetchFile };
+export { fetchFile };

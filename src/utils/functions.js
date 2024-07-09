@@ -1,4 +1,9 @@
-import { DURATION, FPS, MIMETYPES, RESOLUTION } from "./constants";
+import {
+  FPS,
+  MIMETYPES,
+  RECORDING_DURATION_IN_MS,
+  RESOLUTION,
+} from "./constants";
 import RecordRTC from "recordrtc";
 
 export function renderTextWithEl(text, element) {
@@ -15,9 +20,7 @@ export function renderTextWithEl(text, element) {
 
 export const captureSvgAnimationVideo = async (svgImg, canvas) => {
   const ctx = canvas.getContext("2d");
-  const totalFrames = DURATION * FPS;
   let animationRequestId;
-  const frames = [];
 
   const stream = canvas.captureStream(FPS);
   const recorder = new RecordRTC(stream, {
@@ -33,17 +36,10 @@ export const captureSvgAnimationVideo = async (svgImg, canvas) => {
   canvas.width = RESOLUTION.width;
 
   return new Promise(async (resolve) => {
-    let frameCount = 0;
     function drawFrame(_timestamp) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(svgImg, 0, 0);
-
-      if (frameCount < totalFrames) {
-        animationRequestId = requestAnimationFrame(drawFrame);
-      } else {
-        cancelAnimationFrame(animationRequestId);
-        resolve(frames);
-      }
+      animationRequestId = requestAnimationFrame(drawFrame);
     }
     animationRequestId = requestAnimationFrame(drawFrame);
 
@@ -54,7 +50,7 @@ export const captureSvgAnimationVideo = async (svgImg, canvas) => {
         cancelAnimationFrame(animationRequestId);
         resolve(url);
       });
-    }, 5000);
+    }, RECORDING_DURATION_IN_MS);
   });
 };
 
@@ -62,7 +58,6 @@ export async function loadSVG(svgDataUrl) {
   const response = await fetch(svgDataUrl);
   const svgText = await response.text();
   const blob = new Blob([svgText], { type: MIMETYPES.svg });
-  const url = URL.createObjectURL(blob);
 
   const reader = new FileReader();
 
@@ -73,8 +68,6 @@ export async function loadSVG(svgDataUrl) {
       img.height = 1000;
       img.width = 1000;
       img.onload = () => {
-        // URL.revokeObjectURL(url);
-        console.log("load fetch svg url", url);
         resolve(img);
       };
       img.onerror = reject;
@@ -82,6 +75,14 @@ export async function loadSVG(svgDataUrl) {
     };
     reader.readAsDataURL(blob);
   });
+}
+
+export async function convertSvgToVideo(svgDataUrl) {
+  const canvas = document.createElement("canvas");
+  const svgImg = await loadSVG(svgDataUrl);
+  renderTextWithEl("Preview of SVG", svgImg);
+  const videoUrl = await captureSvgAnimationVideo(svgImg, canvas);
+  return videoUrl;
 }
 
 export function downloadGIF(output) {
